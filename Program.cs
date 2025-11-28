@@ -1,5 +1,14 @@
 using SmtpServer;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Serilog;
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
 
 var config = new RelayConfiguration
 {
@@ -14,17 +23,21 @@ var config = new RelayConfiguration
     AuthPassword = Environment.GetEnvironmentVariable("AUTH_PASSWORD")
 };
 
-Console.WriteLine("FullSendIt SMTP Relay Service");
-Console.WriteLine("=============================");
-Console.WriteLine($"Listening on port: {config.ListenPort}");
-Console.WriteLine($"Relay server: {config.RelayHost}:{config.RelayPort}");
-Console.WriteLine($"Relay TLS: {config.RelayUseTls}");
-Console.WriteLine($"Authentication required: {config.RequireAuth}");
-Console.WriteLine();
+Log.Information("FullSendIt SMTP Relay Service");
+Log.Information("=============================");
+Log.Information("Listening on port: {ListenPort}", config.ListenPort);
+Log.Information("Relay server: {RelayHost}:{RelayPort}", config.RelayHost, config.RelayPort);
+Log.Information("Relay TLS: {RelayUseTls}", config.RelayUseTls);
+Log.Information("Authentication required: {RequireAuth}", config.RequireAuth);
 
 var serviceCollection = new ServiceCollection();
+serviceCollection.AddLogging(builder =>
+{
+    builder.ClearProviders();
+    builder.AddSerilog(dispose: true);
+});
 serviceCollection.AddSingleton(config);
-serviceCollection.AddSingleton<RelayMessageStore>();
+serviceCollection.AddSingleton<SmtpServer.Storage.IMessageStore, RelayMessageStore>();
 
 if (config.RequireAuth)
 {
@@ -50,11 +63,12 @@ var cts = new CancellationTokenSource();
 
 Console.CancelKeyPress += (s, e) =>
 {
-    Console.WriteLine("Shutting down...");
+    Log.Information("Shutting down...");
     e.Cancel = true;
     cts.Cancel();
 };
 
 await smtpServer.StartAsync(cts.Token);
 
-Console.WriteLine("Server stopped.");
+Log.Information("Server stopped.");
+await Log.CloseAndFlushAsync();
