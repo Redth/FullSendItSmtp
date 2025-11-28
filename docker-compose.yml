@@ -1,0 +1,22 @@
+services:
+  smtp-relay:
+    build: .
+    container_name: fullsendit-smtp-relay
+    ports:
+      - "2525:25"
+    environment:
+      # Listening configuration
+      - SMTP_LISTEN_PORT=25
+      
+      # Relay server configuration (REQUIRED)
+      - RELAY_HOST=smtp.gmail.com
+      - RELAY_PORT=587
+      - RELAY_USERNAME=your-email@gmail.com
+      - RELAY_PASSWORD=your-app-password
+      - RELAY_USE_TLS=true
+      
+      # Optional: Require authentication for incoming connections
+      - REQUIRE_AUTH=false
+      # - AUTH_USERNAME=listen-user
+      # - AUTH_PASSWORD=listen-password
+    restart: unless-stopped
